@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Source for icon.png: "C++" where the second + is cut through a play button. -->
+  <rect width="256" height="256" rx="44" fill="#000000"/>
+  <g fill="none" stroke="#33FF33">
+    <path d="M122,88 A54,54 0 1 0 122,168" stroke-width="22"/>
+    <path d="M78,128 H126 M102,104 V152" stroke-width="18"/>
+    <path d="M150,74 L236,128 L150,182 Z" fill="#33FF33" stroke-width="12" stroke-linejoin="round"/>
+    <!-- The second +, in the background colour so it reads as a cut. -->
+    <path d="M140,128 H202 M180,68 V188" stroke="#000000" stroke-width="17"/>
+  </g>
+</svg>
