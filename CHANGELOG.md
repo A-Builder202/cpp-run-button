@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- New icon: "C++" in terminal green, where the second + is cut through a ▶ button.
+
 ## 0.2.0
 
 - Works alongside Microsoft's C/C++ extension:
