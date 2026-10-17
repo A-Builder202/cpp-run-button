@@ -1,0 +1,112 @@
+{
+  "name": "cpp-run-button",
+  "displayName": "C++ Run Button",
+  "description": "A ▶ button in the editor title bar that compiles the open C++ file with g++ and runs it.",
+  "version": "0.1.0",
+  "publisher": "xalrk",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xalrk/cpp-run-button.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xalrk/cpp-run-button/issues"
+  },
+  "homepage": "https://github.com/xalrk/cpp-run-button#readme",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "c++",
+    "cpp",
+    "g++",
+    "run",
+    "compile"
+  ],
+  "main": "./extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Building and running code is disabled in Restricted Mode."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "cppRunButton.run",
+        "title": "Build and Run C++ File",
+        "category": "C++",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "cppRunButton.run",
+          "when": "resourceLangId == cpp",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "cppRunButton.run",
+          "when": "editorLangId == cpp"
+        }
+      ]
+    },
+    "taskDefinitions": [
+      {
+        "type": "cppRunButton",
+        "required": [
+          "step",
+          "file"
+        ],
+        "properties": {
+          "step": {
+            "type": "string",
+            "enum": [
+              "build",
+              "run"
+            ],
+            "description": "Whether this task compiles the file or runs the result."
+          },
+          "file": {
+            "type": "string",
+            "description": "The C++ source file."
+          },
+          "id": {
+            "type": "number",
+            "description": "Tells apart repeated runs of the same file."
+          }
+        }
+      }
+    ],
+    "configuration": {
+      "title": "C++ Run Button",
+      "properties": {
+        "cppRunButton.compiler": {
+          "type": "string",
+          "default": "g++",
+          "markdownDescription": "Compiler to run. A name on your `PATH` (`g++`, `clang++`) or a full path to the executable."
+        },
+        "cppRunButton.compilerArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Extra arguments passed to the compiler before the file name, for example `[\"-std=c++20\", \"-Wall\"]`."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "node scripts/package.js",
+    "test": "node test/runTest.js"
+  }
+}
