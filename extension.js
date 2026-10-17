@@ -4,14 +4,20 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const vscode = require('vscode');
+const cpptools = require('./cpptools');
 
 const TASK_TYPE = 'cppRunButton';
 const TASK_SOURCE = 'C++ Run Button';
 
+let extensionContext;
+
 function activate(context) {
+  extensionContext = context;
   context.subscriptions.push(
     vscode.commands.registerCommand('cppRunButton.run', buildAndRun)
   );
+  // What vscode.extensions.getExtension(...).exports gives, for the tests.
+  return { cpptools };
 }
 
 function deactivate() {}
@@ -36,6 +42,8 @@ async function buildAndRun(uri) {
   if (document.isDirty && !(await document.save())) {
     return { built: false };
   }
+  // Not awaited: the build goes ahead while the question is showing.
+  cpptools.offerToHideRunButton(extensionContext, document.uri).catch(() => {});
 
   const file = document.uri.fsPath;
   const dir = path.dirname(file);
@@ -43,19 +51,12 @@ async function buildAndRun(uri) {
   const exe = path.join(dir, process.platform === 'win32' ? `${name}.exe` : name);
 
   const config = vscode.workspace.getConfiguration('cppRunButton', document.uri);
-  const compiler = config.get('compiler') || 'g++';
-  const args = [...config.get('compilerArgs', []), file, '-o', exe];
-  const scope = vscode.workspace.getWorkspaceFolder(document.uri) || vscode.TaskScope.Workspace;
-
-  // A task whose program doesn't exist never reports that it ended, so check
-  // for the compiler up front.
-  if (!findExecutable(compiler)) {
-    vscode.window.showErrorMessage(
-      `Couldn't find the compiler "${compiler}". Check that it is installed and on your PATH, ` +
-        'or set "cppRunButton.compiler" to its full path.'
-    );
+  const compiler = findCompiler(config, document.uri);
+  if (!compiler) {
     return { built: false };
   }
+  const args = [...config.get('compilerArgs', []), file, '-o', exe];
+  const scope = vscode.workspace.getWorkspaceFolder(document.uri) || vscode.TaskScope.Workspace;
 
   // A program still waiting for input would keep its terminal busy, and on
   // Windows it would lock the .exe we are about to overwrite.
@@ -102,6 +103,33 @@ async function buildAndRun(uri) {
     { clear: false, focus: true, echo: false }
   );
   return { built: true, exitCode: run.exitCode };
+}
+
+// The compiler to use: the cppRunButton.compiler setting if the user set it,
+// otherwise g++ from PATH, otherwise the compiler Microsoft C/C++ is set up
+// with. Checked up front because a task whose program doesn't exist never
+// reports that it ended. Shows an error and returns undefined if none is found.
+function findCompiler(config, uri) {
+  const setting = config.inspect('compiler') || {};
+  const chosen = [setting.workspaceFolderValue, setting.workspaceValue, setting.globalValue].find(Boolean);
+  if (chosen) {
+    if (findExecutable(chosen)) return chosen;
+    vscode.window.showErrorMessage(
+      `Couldn't find the compiler "${chosen}" set in "cppRunButton.compiler". ` +
+        'Check that it is installed, and use its full path if it is not on your PATH.'
+    );
+    return undefined;
+  }
+
+  if (findExecutable('g++')) return 'g++';
+  const configured = cpptools.configuredCompiler(uri);
+  if (configured && findExecutable(configured)) return configured;
+
+  vscode.window.showErrorMessage(
+    'Couldn\'t find g++. Install it and make sure it is on your PATH, ' +
+      'or set "cppRunButton.compiler" to the full path of your compiler.'
+  );
+  return undefined;
 }
 
 async function findDocument(uri) {
@@ -217,4 +245,4 @@ function stopRunningTasks() {
   });
 }
 
-module.exports = { activate, deactivate, buildAndRun };
+module.exports = { activate, deactivate };

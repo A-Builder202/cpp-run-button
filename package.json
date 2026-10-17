@@ -2,7 +2,7 @@
   "name": "cpp-run-button",
   "displayName": "C++ Run Button",
   "description": "A ▶ button in the editor title bar that compiles the open C++ file with g++ and runs it.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "xalrk",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -91,8 +91,8 @@
       "properties": {
         "cppRunButton.compiler": {
           "type": "string",
-          "default": "g++",
-          "markdownDescription": "Compiler to run. A name on your `PATH` (`g++`, `clang++`) or a full path to the executable."
+          "default": "",
+          "markdownDescription": "Compiler to run: a name on your `PATH` (`g++`, `clang++`) or a full path. When empty, `g++` from your `PATH` is used, or else the compiler the Microsoft C/C++ extension is set up with."
         },
         "cppRunButton.compilerArgs": {
           "type": "array",

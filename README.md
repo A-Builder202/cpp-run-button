@@ -21,10 +21,13 @@ It works in VS Code and VSCodium. It is tested on Linux and written to work on m
 - **Click again to restart:** a program still waiting for input is stopped before the new build starts.
 - **No dependencies:** nothing to install besides a compiler, and no shell commands, so file names with spaces
   are fine.
+- **Gets along with Microsoft's C/C++ extension:** uses the compiler it is set up with, and offers to hide its
+  second Run button (see [below](#microsofts-cc-extension)).
 
 ## Requirements
 
-A C++ compiler on your `PATH`, `g++` by default:
+A C++ compiler: `g++` on your `PATH`, or the compiler you set up in Microsoft's C/C++ extension, or any compiler
+you name in the `cppRunButton.compiler` setting.
 
 | System | Install |
 | --- | --- |
@@ -56,10 +59,24 @@ The executable is written next to the source file (`hello` or `hello.exe`). You 
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `cppRunButton.compiler` | `"g++"` | Compiler to run: a name on your `PATH` (`g++`, `clang++`) or a full path. |
+| `cppRunButton.compiler` | `""` | Compiler to run: a name on your `PATH` (`g++`, `clang++`) or a full path. When empty, `g++` from your `PATH` is used, or else the compiler set up in Microsoft's C/C++ extension. |
 | `cppRunButton.compilerArgs` | `[]` | Extra arguments placed before the file name, e.g. `["-std=c++20", "-Wall", "-O2"]`. |
 
 Each file is compiled on its own. For projects with several `.cpp` files, use a build system such as CMake.
+
+## Microsoft's C/C++ extension
+
+Many people have Microsoft's [C/C++ extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
+installed. C++ Run Button works alongside it:
+
+- **Compiler:** if `g++` isn't on your `PATH`, the compiler from its settings is used: the `compilerPath` in your
+  folder's `.vscode/c_cpp_properties.json`, then `C_Cpp.default.compilerPath`. A C compiler there is swapped for
+  the C++ one next to it (`gcc` → `g++`, `clang` → `clang++`). MSVC's `cl.exe` isn't supported.
+- **Two Run buttons:** Microsoft's extension adds its own Run/Debug button to the title bar. The first time you
+  click ▶ while both are showing, you are asked whether to hide Microsoft's. **Hide it** turns off its
+  `C_Cpp.debugShortcut` setting, which also hides its "Add Debug Configuration" ⚙ button; set it back to `true`
+  to bring them back. **Keep both** asks again next time you open the editor, and **Don't ask again** doesn't.
+  Debugging is still available from the Run and Debug view.
 
 ## Restricted Mode
 
@@ -81,6 +98,15 @@ desktop session, and `VSCODE_BIN` must point at the editor's main executable (no
 
 ```sh
 VSCODE_BIN=/path/to/VSCodium-linux-x64/codium node test/runTest.js
+```
+
+To also run them next to Microsoft's C/C++ extension, which only works in Microsoft's VS Code, install it into
+a separate extensions folder and point the tests at both:
+
+```sh
+/path/to/VSCode-linux-x64/bin/code --extensions-dir /tmp/cpptools-ext --install-extension ms-vscode.cpptools
+CPPTOOLS_VSCODE_BIN=/path/to/VSCode-linux-x64/code CPPTOOLS_EXTENSIONS_DIR=/tmp/cpptools-ext \
+  VSCODE_BIN=/path/to/VSCodium-linux-x64/codium node test/runTest.js
 ```
 
 ## License

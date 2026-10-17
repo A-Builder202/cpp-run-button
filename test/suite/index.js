@@ -9,6 +9,15 @@ const path = require('path');
 const vscode = require('vscode');
 
 const dir = process.env.CPP_RUN_TEST_DIR;
+const folderOpen = Boolean(vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length);
+const hasCpptools = Boolean(vscode.extensions.getExtension('ms-vscode.cpptools'));
+
+// Thrown by a test that doesn't apply to this editor setup.
+class Skip extends Error {}
+
+function extension() {
+  return vscode.extensions.getExtension('xalrk.cpp-run-button').exports;
+}
 
 function write(name, source) {
   const file = path.join(dir, name);
@@ -25,6 +34,40 @@ async function open(file) {
 
 function runButton() {
   return vscode.commands.executeCommand('cppRunButton.run');
+}
+
+// Answers the "hide Microsoft's Run button" question with `answer` and
+// records each time it is asked. Starts a fresh editor session for it.
+function answerCpptoolsQuestion(answer) {
+  const { cpptools } = extension();
+  const calls = [];
+  cpptools.ui.ask = async (message, ...items) => {
+    calls.push({ message, items });
+    return answer;
+  };
+  cpptools.session.asked = false;
+  return calls;
+}
+
+function findOnPath(name) {
+  return (process.env.PATH || '').split(path.delimiter).map((d) => path.join(d, name)).find((p) => fs.existsSync(p));
+}
+
+// Runs the button with g++ hidden from the extension's PATH lookup, and
+// returns the result along with the compiler the build step ran.
+async function runWithoutGxxOnPath() {
+  let compiler;
+  const subscription = vscode.tasks.onDidStartTask((e) => {
+    if (e.execution.task.definition.step === 'build') compiler = e.execution.task.execution.process;
+  });
+  const savedPath = process.env.PATH;
+  process.env.PATH = '';
+  try {
+    return { result: await runButton(), compiler };
+  } finally {
+    process.env.PATH = savedPath;
+    subscription.dispose();
+  }
 }
 
 function waitFor(condition, timeout = 20000) {
@@ -144,8 +187,116 @@ const tests = {
   },
 };
 
+
+Object.assign(tests, {
+  async 'turns C compiler paths into the matching C++ driver'() {
+    const { cxxDriver } = extension().cpptools;
+    const cases = [
+      ['/usr/bin/gcc', path.join('/usr/bin', 'g++')],
+      ['/usr/bin/g++', path.join('/usr/bin', 'g++')],
+      ['/usr/bin/clang-18', path.join('/usr/bin', 'clang++-18')],
+      ['/usr/bin/cc', path.join('/usr/bin', 'c++')],
+      ['/opt/mingw/bin/x86_64-w64-mingw32-gcc', path.join('/opt/mingw/bin', 'x86_64-w64-mingw32-g++')],
+      ['C:/msys64/ucrt64/bin/gcc.exe', path.join('C:/msys64/ucrt64/bin', 'g++.exe')],
+      ['C:/VS/bin/Hostx64/x64/cl.exe', undefined],
+      ['', undefined],
+      [null, undefined],
+    ];
+    for (const [input, expected] of cases) assert.strictEqual(cxxDriver(input), expected, String(input));
+  },
+
+  async 'reads c_cpp_properties.json with comments and trailing commas'() {
+    const { parseJsonc } = extension().cpptools;
+    const text = '{\n  // a comment\n  "url": "http://example.com", /* another */\n' +
+      '  "list": [1, 2,],\n  "tricky": "a \\" ,] // b",\n}\n';
+    assert.deepStrictEqual(parseJsonc(text), { url: 'http://example.com', list: [1, 2], tricky: 'a " ,] // b' });
+  },
+
+  async 'uses the compiler from c_cpp_properties.json when g++ is not on PATH'() {
+    if (!folderOpen) throw new Skip('needs a folder open');
+    const gcc = findOnPath('gcc');
+    const name = { linux: 'Linux', darwin: 'Mac', win32: 'Win32' }[process.platform];
+    write(path.join('.vscode', 'c_cpp_properties.json'), [
+      '{',
+      '  // Written by Microsoft C/C++',
+      '  "configurations": [',
+      `    { "name": "${name}", "compilerPath": ${JSON.stringify(gcc)}, },`,
+      '  ],',
+      '  "version": 4',
+      '}',
+    ].join('\n'));
+    try {
+      await open(write('props.cpp', 'int main() { return 9; }\n'));
+      const { result, compiler } = await runWithoutGxxOnPath();
+      assert.deepStrictEqual(result, { built: true, exitCode: 9 });
+      assert.strictEqual(compiler, path.join(path.dirname(gcc), 'g++'));
+    } finally {
+      fs.rmSync(path.join(dir, '.vscode'), { recursive: true, force: true });
+    }
+  },
+
+  async 'uses C_Cpp.default.compilerPath when g++ is not on PATH'() {
+    if (!hasCpptools) throw new Skip('needs Microsoft C/C++');
+    const gcc = findOnPath('gcc');
+    const config = vscode.workspace.getConfiguration('C_Cpp');
+    await config.update('default.compilerPath', gcc, vscode.ConfigurationTarget.Global);
+    try {
+      await open(write('default-path.cpp', 'int main() { return 10; }\n'));
+      const { result, compiler } = await runWithoutGxxOnPath();
+      assert.deepStrictEqual(result, { built: true, exitCode: 10 });
+      assert.strictEqual(compiler, path.join(path.dirname(gcc), 'g++'));
+    } finally {
+      await config.update('default.compilerPath', undefined, vscode.ConfigurationTarget.Global);
+    }
+  },
+
+  async 'does not ask about Microsoft\'s Run button when it is not installed'() {
+    if (hasCpptools) throw new Skip('Microsoft C/C++ is installed');
+    const calls = answerCpptoolsQuestion('Hide it');
+    await open(write('no-cpptools.cpp', 'int main() { return 0; }\n'));
+    assert.deepStrictEqual(await runButton(), { built: true, exitCode: 0 });
+    assert.strictEqual(calls.length, 0);
+  },
+
+  async '"Keep both" leaves Microsoft\'s Run button and asks again next session'() {
+    if (!hasCpptools) throw new Skip('needs Microsoft C/C++');
+    const calls = answerCpptoolsQuestion('Keep both');
+    await open(write('keep.cpp', 'int main() { return 0; }\n'));
+    await runButton();
+    await runButton();
+    assert.strictEqual(calls.length, 1, 'asked once per session');
+    assert.match(calls[0].message, /Microsoft C\/C\+\+ also shows a Run button/);
+    assert.deepStrictEqual(calls[0].items, ['Hide it', 'Keep both', "Don't ask again"]);
+    assert.strictEqual(vscode.workspace.getConfiguration('C_Cpp').get('debugShortcut'), true);
+    extension().cpptools.session.asked = false;
+    await runButton();
+    assert.strictEqual(calls.length, 2, 'asked again in a new session');
+  },
+
+  async '"Hide it" turns off Microsoft\'s Run button and is remembered'() {
+    if (!hasCpptools) throw new Skip('needs Microsoft C/C++');
+    const config = () => vscode.workspace.getConfiguration('C_Cpp');
+    const calls = answerCpptoolsQuestion('Hide it');
+    try {
+      await open(write('hide.cpp', 'int main() { return 0; }\n'));
+      await runButton();
+      await waitFor(() => config().get('debugShortcut') === false);
+      assert.strictEqual(config().inspect('debugShortcut').globalValue, false);
+      // Turning it back on later must not bring the question back.
+      await config().update('debugShortcut', undefined, vscode.ConfigurationTarget.Global);
+      extension().cpptools.session.asked = false;
+      await runButton();
+      assert.strictEqual(calls.length, 1);
+    } finally {
+      await config().update('debugShortcut', undefined, vscode.ConfigurationTarget.Global);
+    }
+  },
+});
+
 async function run() {
   await vscode.extensions.getExtension('xalrk.cpp-run-button').activate();
+  // No real notifications: tests that care about the question set their own.
+  answerCpptoolsQuestion(undefined);
   const results = [];
   const only = process.env.CPP_RUN_TEST_GREP;
   for (const [name, test] of Object.entries(tests)) {
@@ -158,7 +309,9 @@ async function run() {
       await Promise.race([test(), timeout]);
       results.push({ name });
     } catch (err) {
-      results.push({ name, error: String(err && err.stack ? err.stack : err) });
+      results.push(err instanceof Skip
+        ? { name, skipped: err.message }
+        : { name, error: String(err && err.stack ? err.stack : err) });
     } finally {
       clearTimeout(timer);
     }

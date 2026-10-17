@@ -18,6 +18,7 @@ const FILES = [
   ['package.json', 'package.json'],
   ['extension.js', 'extension.js'],
   ['run-in-dir.js', 'run-in-dir.js'],
+  ['cpptools.js', 'cpptools.js'],
   ['README.md', 'readme.md'],
   ['CHANGELOG.md', 'changelog.md'],
   ['LICENSE', 'LICENSE.txt'],
