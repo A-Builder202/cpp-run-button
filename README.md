@@ -8,7 +8,9 @@ g++ hello.cpp -o hello
 ./hello
 ```
 
-It works in VS Code and VSCodium. It is tested on Linux and written to work on macOS and Windows as well.
+(On native Windows, i.e. without WSL, the program is `hello.exe`, and the button runs it the same way.)
+
+It works in VS Code and VSCodium, on Linux, macOS and Windows, and inside WSL.
 
 ![The ▶ button in the editor's top right corner, and a program that asked for a name running in the terminal panel](images/screenshot.png)
 
@@ -26,22 +28,84 @@ It works in VS Code and VSCodium. It is tested on Linux and written to work on m
 
 ## Requirements
 
-A C++ compiler: `g++` on your `PATH`, or the compiler you set up in Microsoft's C/C++ extension, or any compiler
-you name in the `cppRunButton.compiler` setting.
+You need a C++ compiler that the extension can find: `g++` on your `PATH`, or the compiler you set up in
+Microsoft's C/C++ extension, or any compiler you name in the `cppRunButton.compiler` setting. The compiler must
+run on the same system as the editor's extensions: on native Windows that means a Windows build of `g++`, and in
+WSL a Linux one.
 
-| System | Install |
-| --- | --- |
-| Linux | `g++` from your distribution, e.g. `sudo dnf install gcc-c++` or `sudo apt install g++` |
-| macOS | `xcode-select --install` (installs Apple's `g++`, which is Clang) |
-| Windows | [MSYS2](https://www.msys2.org/) with the MinGW-w64 toolchain, then add its `bin` folder (e.g. `C:\msys64\ucrt64\bin`) to `PATH` |
+If you already have a compiler, skip ahead to [Installing](#installing): open a terminal, run `g++ --version`,
+and if it prints a version you are set. Otherwise pick the section below that matches how you use the editor.
 
-Open a new terminal and check with `g++ --version`.
+### Linux
+
+Install `g++` from your distribution:
+
+```sh
+sudo apt install g++          # Debian, Ubuntu, Mint
+sudo dnf install gcc-c++      # Fedora
+sudo pacman -S gcc            # Arch
+```
+
+Then open a new terminal and check with `g++ --version`.
+
+### macOS
+
+Install Apple's command line tools, which include `g++` (it is Clang under the hood, which is fine):
+
+```sh
+xcode-select --install
+```
+
+Then open a new terminal and check with `g++ --version`.
+
+### Windows (native, without WSL)
+
+The extension runs on Windows itself and needs a Windows build of `g++`. The easiest way to get one is the
+MinGW-w64 toolchain from [MSYS2](https://www.msys2.org/):
+
+1. Download and run the MSYS2 installer. Keep the default folder, `C:\msys64`.
+2. In the **MSYS2 UCRT64** terminal it opens at the end (also in the Start menu), install the compiler:
+
+   ```sh
+   pacman -S mingw-w64-ucrt-x86_64-gcc
+   ```
+
+3. Add `C:\msys64\ucrt64\bin` to your `PATH`: open the Start menu, search for **Edit environment variables for
+   your account**, select **Path**, click **Edit** then **New**, and paste the folder.
+4. Restart VS Code (close all its windows) so it picks up the new `PATH`, then check in its terminal panel with
+   `g++ --version`.
+
+Notes:
+
+- If you already set up Microsoft's C/C++ extension with a MinGW `g++`, you can skip step 3: when `g++` isn't on
+  your `PATH`, the ▶ button uses the compiler from that extension's settings.
+- Visual Studio's compiler (`cl.exe`) isn't supported.
+- A `g++` installed inside WSL (with `apt`) can't be used from native Windows. If that is where your compiler is,
+  use the next section instead.
+
+### Windows with WSL
+
+If your code and compiler live in WSL, open the folder in WSL rather than in Windows, and everything works like
+on Linux:
+
+1. Install Microsoft's [WSL extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl)
+   in VS Code.
+2. Open your folder in WSL: run `code .` from a WSL terminal, or use **WSL: Connect to WSL** from the Command
+   Palette. The window's bottom left corner then shows **WSL: Ubuntu** (or your distribution's name).
+3. Install `g++` in WSL, in its terminal: `sudo apt install g++` (Ubuntu and Debian), then check with
+   `g++ --version`.
+4. Install C++ Run Button while connected to WSL (see [Installing](#installing)). Extensions are installed per
+   system, so an install done in a native Windows window doesn't show up in WSL windows, and the other way round.
+
+In WSL the program is `hello`, not `hello.exe`, and the Linux instructions apply throughout this README.
 
 ## Installing
 
 1. Download `cpp-run-button-<version>.vsix` from the [releases page](https://github.com/xalrk/cpp-run-button/releases).
 2. In the editor, open the Command Palette (`Ctrl+Shift+P`, or `Cmd+Shift+P` on macOS), run
    **Extensions: Install from VSIX...** and pick the file.
+
+If you work in WSL, do this in a window that is connected to WSL, so the extension is installed there.
 
 ## Usage
 
@@ -52,14 +116,14 @@ fails, nothing is run.
 To give it a keyboard shortcut, open **Preferences: Open Keyboard Shortcuts**, search for
 `cppRunButton.run` and pick a key.
 
-The executable is written next to the source file (`hello` or `hello.exe`). You may want to add these to your
-`.gitignore`.
+The executable is written next to the source file: `hello` on Linux, macOS and WSL, `hello.exe` on native Windows. You
+may want to add these to your `.gitignore`.
 
 ## Settings
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `cppRunButton.compiler` | `""` | Compiler to run: a name on your `PATH` (`g++`, `clang++`) or a full path. When empty, `g++` from your `PATH` is used, or else the compiler set up in Microsoft's C/C++ extension. |
+| `cppRunButton.compiler` | `""` | Compiler to run: a name on your `PATH` (`g++`, `clang++`) or a full path, e.g. `C:\msys64\ucrt64\bin\g++.exe`. When empty, `g++` from your `PATH` is used, or else the compiler set up in Microsoft's C/C++ extension. |
 | `cppRunButton.compilerArgs` | `[]` | Extra arguments placed before the file name, e.g. `["-std=c++20", "-Wall", "-O2"]`. |
 
 Each file is compiled on its own. For projects with several `.cpp` files, use a build system such as CMake.
