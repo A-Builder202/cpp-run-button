@@ -125,6 +125,7 @@ may want to add these to your `.gitignore`.
 | --- | --- | --- |
 | `cppRunButton.compiler` | `""` | Compiler to run: a name on your `PATH` (`g++`, `clang++`) or a full path, e.g. `C:\msys64\ucrt64\bin\g++.exe`. When empty, `g++` from your `PATH` is used, or else the compiler set up in Microsoft's C/C++ extension. |
 | `cppRunButton.compilerArgs` | `[]` | Extra arguments placed before the file name, e.g. `["-std=c++20", "-Wall", "-O2"]`. |
+| `cppRunButton.clearTerminal` | `true` | Clear the terminal on each click, so it shows only the latest build and run. Set to `false` to keep the output of earlier runs above it. |
 
 Each file is compiled on its own. For projects with several `.cpp` files, use a build system such as CMake.
 

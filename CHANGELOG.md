@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `cppRunButton.clearTerminal` setting: set it to `false` to keep the output of earlier runs in the terminal
+  instead of clearing it on each click. Clearing stays the default.
+
 ## 0.2.1
 
 - New icon: "C++" in terminal green, where the second + is cut through a ▶ button.

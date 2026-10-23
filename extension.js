@@ -75,7 +75,7 @@ async function buildAndRun(uri) {
     { type: TASK_TYPE, step: 'build', file },
     scope,
     new vscode.ProcessExecution(compiler, args, cwdOptions),
-    { clear: true, focus: false, echo: true }
+    { clear: config.get('clearTerminal', true), focus: false, echo: true }
   );
   if (!build.started) {
     vscode.window.showErrorMessage(`Couldn't start the compiler "${compiler}".`);
@@ -95,7 +95,9 @@ async function buildAndRun(uri) {
     })
     : new vscode.ProcessExecution(exe, [], cwdOptions);
   // The build step already echoed what is going on, and in the no-folder case
-  // the command line would only show the editor's own executable.
+  // the command line would only show the editor's own executable. It shares
+  // the build's terminal, so clearing there (cppRunButton.clearTerminal)
+  // already covers this step.
   const run = await runTask(
     { type: TASK_TYPE, step: 'run', file },
     scope,
