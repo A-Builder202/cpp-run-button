@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - `cppRunButton.clearTerminal` setting: set it to `false` to keep the output of earlier runs in the terminal
   instead of clearing it on each click. Clearing stays the default.
+- README: separate setup steps for native Windows and for WSL.
 
 ## 0.2.1
 
